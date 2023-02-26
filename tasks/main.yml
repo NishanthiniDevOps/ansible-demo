@@ -1,0 +1,45 @@
+---
+
+- name: Install/ensure nginx 
+  apt: name={{ item }} state=latest
+  loop:
+    - nginx
+    - postgresql
+    - php-fpm
+    - php-pgsql
+    
+- name: Creates directory
+  file:
+    path: /var/www/democrance
+    state: directory
+    
+- name: Create ssl cert
+  shell : >
+    openssl req -x509 -newkey rsa:4096 -nodes -keyout /etc/nginx/ssl/democrance.key -out /etc/nginx/ssl/democrance.crt  -subj "/C=US/ST=Denial/L=Springfield/O=Dis/CN=www.demo.com" 
+    
+- name: Set up nginx conf file
+  template:
+          src: "files/democrance"
+          dest: "/etc/nginx/sites-available/democrance"
+  #notify: restart nginx
+
+- name: Create symbolic link 
+  shell : >
+    ln -s /etc/nginx/sites-available/democrance /etc/nginx/sites-enabled/
+    unlink /etc/nginx/sites-enabled/default
+  notify: restart nginx
+  
+- name: Copy php folder
+  copy:
+    src: "files/php"
+    dest: "/var/www/democrance"
+    
+- name: Run queries from SQL script
+  postgresql_query:
+    login_host: {{ db_host }}
+    login_user: {{ db_user }}
+    login_password: {{ db_pass }}
+    db: 
+    path_to_script: /var/www/democrance/employee.sql
+    
+
